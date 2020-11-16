@@ -1,0 +1,93 @@
+---
+title: "Loading NHIS Data"
+author: "Kevin R Foster"
+output: html_document
+---
+
+This uses data from CDC's [National Health Interview Survey](http://www.cdc.gov/nchs/nhis/quest_data_related_1997_forward.htm).
+
+This Rmd file is an abbreviated version of one for ATUS that I wrote.  There are other files in the zip: personx.dat is the original data from CDC, personx.sps.txt is their file to upload to SPSS and has coding notes and variable labels, then there are a few minor files that I created to help load.
+
+Step 1 is to input the data.
+
+
+```{r}
+dat_nhis <- read.csv("personsx.csv")
+summary(dat_nhis)
+```
+
+
+There are 2 steps from the .sps program: 1. associating the short name with a longer name, and 2. giving the codes for what the data means.
+
+For example it is easy to figure out that in "SRVY_YR" which is Survey Year the value 2003 indicates the year 2003. Duh. But in "REGION" what do the numbers 1 to 4 mean? The .sps program tells that
+ | 1 | "Northeast"
+ | 2 | "Midwest"
+ | 3 | "South"
+ | 4 | "West"
+and similarly for other variables.
+
+Must be really careful with false friends like "AGE" where it goes in what seems like a perfectly legible way, so the code "35" means that the person is age 35 etc. But at the end 85 is the value for top-coding.
+```{r}
+
+# lazy recoding
+attach(dat_nhis)
+
+REGION <- as.factor(REGION)
+levels(REGION) <- c("Northeast","Midwest","South","West")
+female <- as.numeric(SEX == 2)
+Hispanic <- as.numeric(ORIGIN_I == 1)
+Hispan_PR <- as.numeric(HISPAN_I == "01")
+Hispan_Mex <- as.numeric(HISPAN_I == "02") + as.numeric(HISPAN_I == "03")
+Hispan_DR <- as.numeric(HISPAN_I == "05")
+AfAm <- as.numeric(RACRECI3 == 2)
+Asian <- as.numeric(RACRECI3 == 3)
+RaceOther <- as.numeric(RACRECI3 == 4)
+# RRP is Reference Person - 1 for ref, etc
+AGE_P <- as.numeric(AGE_P)
+married <- as.numeric((R_MARITL == 1) | (R_MARITL == 2) | (R_MARITL == 3))
+widowed <- as.numeric((R_MARITL == 4))
+divorc_sep <- as.numeric((R_MARITL == 5) | (R_MARITL == 6))
+disabl_limit <- as.numeric(LA1AR == 1)
+person_healthstatus <- as.factor(PHSTAT)
+levels(person_healthstatus) <- c("Excellent","Very good", "Good", "Fair", "Poor", "Refused", "Not ascertained", "Don't know")
+# HOSPNO <- as.numeric(HOSPNO)
+# HOSPNO[HOSPNO > 996] <- NA
+NOTCOV <- as.numeric(NOTCOV == 1)
+MEDICARE <- as.numeric((MEDICARE == 1) | (MEDICARE == 2))
+MEDICAID <- as.numeric((MEDICAID == 1) | (MEDICAID == 2))
+private_ins <- as.numeric((PRIVATE == 1) | (PRIVATE == 2))
+SCHIP <-  as.numeric((SCHIP == 1) | (SCHIP == 2))
+sptn_medical <- as.factor(HCSPFYR) # amount spent on medical
+levels(sptn_medical) <- c("zero","under 500","500-1999","2000-2999","3000-4999","5000+","refused",NA,NA)
+borninUSA <- as.numeric(PLBORN == 1)
+region_born <- as.factor(REGIONBR)
+levels(region_born) <- c("US","Mex Cent Am Caribb","S Am","Eur","former USSR","Africa","MidE","India subc","Asia","SE Asia","Elsewhere","unknown")
+educ_nohs <- as.numeric(EDUC1 < 12)
+educ_hs <- as.numeric((EDUC1 == 13) | (EDUC1 == 14))
+educ_smcoll <- as.numeric(EDUC1 == 15)
+educ_as <- as.numeric((EDUC1 > 15) & (EDUC1 < 18))
+educ_bach <- as.numeric(EDUC1 == 18)
+educ_adv <- as.numeric((EDUC1 > 18) & (EDUC1 < 96))
+veteran_stat <- as.numeric(ARMFEV == 1)
+inworkforce <- as.numeric(DOINGLWP < 5)
+WRKHRS2 <- as.numeric(WRKHRS2)
+earn_lastyr <- as.factor(ERNYR_P)
+levels(earn_lastyr) <- c("0","$01-$4999","$5000-$9999","$10000-$14999","$15000-$19999","$20000-$24999","$25000-$34999","$35000-$44999","$45000-$54999","$55000-$64999","$65000-$74999","$75000 and over",NA,NA,NA)
+
+data_use1 <- data.frame(NOTCOV, educ_nohs, educ_hs, educ_smcoll, educ_as, educ_bach, educ_adv, AGE_P, female, AfAm, Asian, RaceOther,Hispanic, Hispan_PR, Hispan_Mex, Hispan_DR, married, widowed, divorc_sep, REGION, borninUSA, region_born,veteran_stat, inworkforce, ERNYR_P, disabl_limit, person_healthstatus, MEDICARE, MEDICAID, private_ins, RRP, HHX, FMX, FPX, SCHIP, sptn_medical)
+
+detach()
+
+```
+Note that I'm leaving much of the data and not using it.  If someone wanted to go back and add a variable to the data_use1 data frame, it would be easy enough.
+
+```{r}
+save(data_use1, file = "NHIS_2017.RData")
+```
+
+Later instead of running all of those lines you can just read in the data file with just this code,
+```{r}
+load("NHIS_2017.RData")
+```
+
+
